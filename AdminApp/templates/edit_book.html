@@ -1,0 +1,14 @@
+{% extends 'main.html' %}
+
+{% block page %}
+    Update Book: {{ book.title }}
+{% endblock %}
+
+{% block body %}
+    <h2>Update Book: {{ book.title }}</h2>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Update Book</button>
+    </form>
+{% endblock %}

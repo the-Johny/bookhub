@@ -1,14 +1,19 @@
+from django.conf import settings
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
-from django.core.validators import RegexValidator, MinValueValidator, MaxValueValidator
-from django.conf import settings
 from django.utils import timezone
+from django.core.validators import MinValueValidator, MaxValueValidator, RegexValidator
+from django.utils.translation import gettext_lazy as _
+from django.core.exceptions import ValidationError
 
 
+# User Manager
 class UserManager(BaseUserManager):
     def create_user(self, email, fullname, phone_number, password=None, role='USER'):
         if not email:
             raise ValueError("Users must have an email address")
+        if not phone_number:
+            raise ValueError("Users must have a phone number")
 
         user = self.model(
             email=self.normalize_email(email),
@@ -34,6 +39,7 @@ class UserManager(BaseUserManager):
         return user
 
 
+# User Model
 class User(AbstractBaseUser, PermissionsMixin):
     ROLE_CHOICES = (
         ('USER', 'User'),
@@ -45,32 +51,21 @@ class User(AbstractBaseUser, PermissionsMixin):
     phone_number = models.CharField(
         max_length=15,
         unique=True,
-        validators=[RegexValidator(regex=r'^\+?1?\d{9,15}$', message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed.")]
+        validators=[
+            RegexValidator(
+                regex=r'^\+?1?\d{9,15}$',
+                message=_("Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed.")
+            )
+        ]
     )
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)
     profile_picture = models.ImageField(
         upload_to='profile_pictures/',
-        default='profile_pictures/default_avatar.jpg'
+        default='https://img.freepik.com/free-photo/portrait-father-his-backyard_23-2149489567.jpg'
     )
-
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='USER')
-
-    groups = models.ManyToManyField(
-        'auth.Group',
-        related_name='adventure_user_groups',
-        blank=True,
-        help_text='The groups this user belongs to.',
-        verbose_name='groups',
-    )
-    user_permissions = models.ManyToManyField(
-        'auth.Permission',
-        related_name='adventure_user_permissions',
-        blank=True,
-        help_text='Specific permissions for this user.',
-        verbose_name='user permissions',
-    )
 
     objects = UserManager()
 
@@ -81,24 +76,162 @@ class User(AbstractBaseUser, PermissionsMixin):
         return f"{self.email} ({self.role})"
 
     def has_perm(self, perm, obj=None):
-        if self.is_staff or self.role == 'ADMIN':
-            return True
-        return super().has_perm(perm, obj)
+        return self.is_staff or self.role == 'ADMIN' or super().has_perm(perm, obj)
 
     def has_module_perms(self, app_label):
-        if self.is_staff or self.role == 'ADMIN':
-            return True
-        return super().has_module_perms(app_label)
+        return self.is_staff or self.role == 'ADMIN' or super().has_module_perms(app_label)
+
+
+# Book Model
+class BookGenre(models.Model):
+    name = models.CharField(max_length=100, unique=True)  # Genre name (e.g., Fiction, Non-Fiction)
+    genre_code = models.CharField(max_length=50)
+
+    def __str__(self):
+        return self.genre_code
+
+
+def validate_isbn(value):
+    isbn = value.replace('-', '')
+    if not isbn.isdigit() or len(isbn) != 13:
+        raise ValidationError(_('Enter a valid 13-digit ISBN (with optional hyphens).'))
 
 
 class Book(models.Model):
-    title = models.CharField(max_length=200)
-    author = models.CharField(max_length=200)
-    description = models.TextField()
-    price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
-    cover_image = models.ImageField(upload_to='images/', default='images/default_cover.jpg')
-    stock = models.IntegerField(default=0, validators=[MinValueValidator(0)])
-    published_date = models.DateField()
+    title = models.CharField(max_length=200, verbose_name=_('Book Title'), db_index=True)
+    author = models.CharField(max_length=200, verbose_name=_('Author Name'))
+    description = models.TextField(blank=True, null=True, verbose_name=_('Book Description'))
+    genre = models.ForeignKey(BookGenre, on_delete=models.CASCADE)  # Foreign Key to BookGenre
+    isbn = models.CharField(max_length=17, unique=True, validators=[validate_isbn], verbose_name=_('ISBN'))
+    publisher = models.CharField(max_length=200, verbose_name=_('Publisher'))
+    price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0.00)],
+                                verbose_name=_('Book Price'))
+    cover_image = models.ImageField(upload_to='images/', blank=True, null=True, verbose_name=_('Book Cover'))
+    stock = models.PositiveIntegerField(default=0, verbose_name=_('Stock Quantity'))
+    published_date = models.DateField(default=timezone.now, verbose_name=_('Publication Date'))
+    pages = models.PositiveIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5000)],
+                                        verbose_name=_('Number of Pages'))
+    is_featured = models.BooleanField(default=False, verbose_name=_('Featured Book'))
+    rating = models.DecimalField(max_digits=3, decimal_places=1,
+                                 validators=[MinValueValidator(0.0), MaxValueValidator(5.0)], null=True, blank=True,
+                                 verbose_name=_('Book Rating'))
+
+    class Meta:
+        ordering = ['id']
+        verbose_name = _('Book')
+        verbose_name_plural = _('Books')
 
     def __str__(self):
-        return self.title
+        return f"{self.title} by {self.author}"
+
+    def clean(self):
+        if self.published_date > timezone.now().date():
+            raise ValidationError({'published_date': _('Publication date cannot be in the future.')})
+
+    def is_in_stock(self):
+        return self.stock > 0
+
+    def get_discounted_price(self, discount_percentage):
+        if not 0 <= discount_percentage <= 100:
+            raise ValueError(_("Discount percentage must be between 0 and 100"))
+        return round(self.price * (1 - discount_percentage / 100), 2)
+
+
+class Cart(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def get_total_price(self):
+        return sum(item.get_total_price() for item in self.items.all())
+
+    def __str__(self):
+        return f"Cart for {self.user.fullname}"
+
+
+class CartItem(models.Model):
+    cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='items')
+    book = models.ForeignKey('Book', on_delete=models.CASCADE, related_name='cart_items')
+    quantity = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)  # Using auto_now_add for consistency
+
+    def get_total_price(self):
+        return self.book.price * self.quantity
+
+    def __str__(self):
+        return f"{self.quantity} x {self.book.title} in cart"
+
+
+class Order(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='orders')
+    created_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, default='Pending')
+
+    def __str__(self):
+        return f"Order {self.id} by {self.user.fullname}"
+
+
+class OrderItem(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
+    book = models.ForeignKey('Book', on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def get_total_price(self):
+        return self.quantity * self.price
+
+class Payment(models.Model):
+    PAYMENT_STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('success', 'Success'),
+        ('failed', 'Failed')
+    ]
+
+    PAYMENT_METHOD_CHOICES = [
+        ('mpesa', 'M-Pesa'),
+        ('credit_card', 'Credit Card'),
+        ('paypal', 'PayPal')
+    ]
+
+    Book = models.OneToOneField(
+        Book,
+        on_delete=models.CASCADE,
+        related_name='payment'
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='payments'
+    )
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2
+    )
+    transaction_code = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True
+    )
+    mpesa_receipt_number = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=PAYMENT_STATUS_CHOICES,
+        default='pending'
+    )
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        default='mpesa'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Payment for {self.booking} - {self.status}"
+
+    class Meta:
+        verbose_name_plural = "Payments"
+        ordering = ['-created_at']

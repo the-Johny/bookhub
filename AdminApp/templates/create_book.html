@@ -1,0 +1,92 @@
+{% extends 'main.html' %}
+
+{% block page %}
+    Create Book
+{% endblock %}
+
+{% block body %}
+    <h2 class="text-center my-2">{{ page_title }}</h2>
+<div class="card container mt-5 p-5">
+    <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <div class="form-group mb-3">
+            <label for="id_title">Title</label>
+            <input type="text" class="form-control" id="id_title" name="title" value="{{ book.title|default:'' }}" required>
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="id_author">Author</label>
+            <input type="text" class="form-control" id="id_author" name="author" value="{{ book.author|default:'' }}" required>
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="id_description">Description</label>
+            <textarea class="form-control" id="id_description" name="description" rows="3" >{{ book.description|default_if_none:'' }}</textarea>
+        </div>
+
+       <div class="form-group mb-3">
+    <label for="id_genres">Genre</label>
+    <select class="form-control" id="id_genres" name="genre" required>
+        <option value="" disabled selected>--- Select genre ---</option>
+        {% for genre in genres %}
+        <option value="{{ genre.id }}" {% if book and book.genre.id == genre.id %}selected{% endif %}>
+            {{ genre.name }}
+        </option>
+        {% endfor %}
+    </select>
+</div>
+
+
+
+        <div class="form-group mt-3">
+            <label for="id_isbn">ISBN</label>
+            <input type="text" class="form-control" id="id_isbn" name="isbn" value="{{ book.isbn|default:'' }}" required>
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="id_publisher">Publisher</label>
+            <input type="text" class="form-control" id="id_publisher" name="publisher" value="{{ book.publisher|default:'' }}" required>
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="id_price">Price(Ksh)</label>
+            <input type="number" class="form-control" id="id_price" name="price" step="0.01" value="{{ book.price|default:'' }}" required>
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="id_cover_image">Cover Image</label>
+            <input type="file" class="form-control-file" id="id_cover_image" name="cover_image">
+            {% if book and book.cover_image %}
+            <small>Current image: {{ book.cover_image.name }}</small>
+            {% endif %}
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="id_stock">Stock Quantity</label>
+            <input type="number" class="form-control" id="id_stock" name="stock" value="{{ book.stock|default:'' }}" required>
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="id_published_date">Publication Date</label>
+            <input type="date" class="form-control" id="id_published_date"  value="{{ book.published_date|date:'Y-m-d'|default:'' }}" name="published_date" required>
+        </div>
+
+        <div class="form-group mb-3" >
+            <label for="id_pages">Number of Pages</label>
+            <input type="number" class="form-control" id="id_pages" name="pages" value="{{ book.pages|default:'' }}" required>
+        </div>
+         <div>
+         <button type="submit" class="btn btn-primary">{{ submit_text }}</button>
+             <a class="btn btn-outline-dark" href="{% url 'books-list' %}">Cancel</a>
+             </div>
+    </form>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.0/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+<script>
+    // Optional: Add dynamic price formatting or other JavaScript enhancements here.
+</script>
+{% endblock %}

@@ -32,7 +32,7 @@
 
 		<header id="header">
 			<div class="container-fluid">
-				<div class="row">
+				<div class="row align-items-center">
 
 					<div class="col-md-2">
 						<div class="main-logo">
@@ -51,6 +51,12 @@
 									<li class="menu-item"><a href="{% url 'popular' %}" class="nav-link">Popular</a></li>
 									<li class="menu-item"><a href="{% url 'offers'%}" class="nav-link">Offer</a></li>
 									<li class="menu-item"><a href="{% url 'articles' %}" class="nav-link">Articles</a></li>
+                                     <li class="menu-item">
+                                        <a href="{% url 'register' %}" class="text-primary">Register</a>
+                                    </li>
+                                    <li class="menu-item">
+                                        <a href="{% url 'login' %}" class="text-primary">Login</a>
+                                    </li>
 
 								</ul>
 

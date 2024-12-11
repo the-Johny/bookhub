@@ -1,0 +1,139 @@
+{% extends 'starter_page.html' %}
+{% load static %}
+<style>
+    .login-gradient {
+        background: linear-gradient(45deg, blueviolet, #67d1bc);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+    }
+
+    .login-card {
+        border-radius: 1rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .login-btn {
+        background-color: #0fa978;
+        color: #F5F5F5;
+        transition: all 0.3s ease;
+    }
+
+    .login-btn:hover {
+        background-color: #0c8f61;
+    }
+
+    .form-control {
+        padding: 0.75rem 1rem;
+    }
+
+    .fade-out {
+        transition: opacity 1s ease-out;
+        opacity: 0;
+    }
+</style>
+
+{% block body %}
+<section class="login-gradient">
+    <div class="container py-5">
+        <div class="row d-flex justify-content-center align-items-center">
+            <div class="col-12 col-md-8 col-lg-6">
+                <div class="card login-card">
+                    <!-- Message Alerts -->
+                    {% if messages %}
+                    <div id="message-container">
+                        {% for message in messages %}
+                            {% if "login_success" in message.tags %}
+                                <div class="alert alert-success">{{ message }}</div>
+                            {% elif "login_error" in message.tags %}
+                                <div class="alert alert-danger">{{ message }}</div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="card-body p-5">
+                        <h3 class="text-center mb-4">Welcome back!</h3>
+                        <form method="POST" id="login-form">
+                            {% csrf_token %}
+
+                            <!-- Email Field -->
+                            <div class="form-group mb-3">
+                                <label for="email">Email address</label>
+                                <input
+                                    type="email"
+                                    name="email"
+                                    id="email"
+                                    class="form-control form-control-lg"
+                                    required
+                                />
+                            </div>
+
+                            <!-- Password Field -->
+                            <div class="form-group mb-4">
+                                <label for="password">Password</label>
+                                <input
+                                    type="password"
+                                    name="password"
+                                    id="password"
+                                    class="form-control form-control-lg"
+                                    required
+                                />
+                            </div>
+
+                            <!-- Submit Button -->
+                            <div class="d-grid">
+                                <button
+                                    type="submit"
+                                    class="btn btn-primary btn-block text-uppercase">
+                                    Login
+                                </button>
+                            </div>
+
+                            <div class="text-center mt-3">
+                                <p class="mb-0">
+                                    Don't have an account?
+                                    <a href="{% url 'register' %}">
+                                        Register
+                                    </a>
+                                </p>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const messageContainer = document.getElementById('message-container');
+    const form = document.getElementById('login-form');
+    const userRole = "{{ user_role|default:''|escapejs }}"; // Escapes to prevent XSS
+
+    if (messageContainer) {
+      setTimeout(() => {
+        // Apply fade-out animation
+        messageContainer.classList.add('fade-out');
+
+        setTimeout(() => {
+          const successMessage = document.querySelector('.alert-success');
+          if (successMessage && userRole) {
+            if (form) {
+              form.reset();
+            }
+            if (userRole === "ADMIN") {
+              window.location.href = "{% url 'admin-home' %}";
+            } else if (userRole === "USER") {
+              window.location.href = "{% url 'user-home' %}";
+            } else {
+              window.location.href = "{% url 'index' %}";
+            }
+          }
+        }, 1000);
+      }, 2000);
+    }
+  });
+</script>
+{% endblock %}

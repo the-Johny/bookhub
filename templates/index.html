@@ -22,61 +22,49 @@
 	<link rel="stylesheet" type="text/css" href="{% static 'icomoon/icomoon.css' %}">
 	<link rel="stylesheet" type="text/css" href="{% static 'css/vendor.css' %}">
 	<link rel="stylesheet" type="text/css" href="{% static 'style.css' %}">
-
 </head>
+<body style="background-color: #f5f5f5;">
+<div data-bs-spy="scroll" data-bs-target="#header" tabindex="0">
 
-<body data-bs-spy="scroll" data-bs-target="#header" tabindex="0">
-
-	<div id="header-wrap">
-
-
-
-				</div>
-			</div>
-		</div><!--top-content-->
 
 		<header id="header">
-			<div class="container-fluid">
-				<div class="row">
+    <div class="container-fluid">
+        <div class="row align-items-center">
+            <div class="col-md-2">
+                <div class="main-logo">
+                    <a href="{% url 'index' %}" class="fw-bold fs-5">BookHub</a>
+                </div>
+            </div>
 
-					<div class="col-md-2">
-						<div class="main-logo">
- <a href="{% url 'index' %}" class="fw-bold fs-5"> BookHub</a>
-						</div>
+            <div class="col-md-10 d-flex justify-content-end">
+                <nav id="navbar" class="w-100">
+                    <div class="main-menu stellarnav">
+                        <ul class="menu-list">
+                            <li class="menu-item active"><a href="{% url 'index' %}">Home</a></li>
+                            <li class="menu-item"><a href="{% url 'featured' %}" class="nav-link">Featured</a></li>
+                            <li class="menu-item"><a href="{% url 'popular' %}" class="nav-link">Popular</a></li>
+                            <li class="menu-item"><a href="{% url 'offers' %}" class="nav-link">Offer</a></li>
+                            <li class="menu-item"><a href="{% url 'articles' %}" class="nav-link">Articles</a></li>
+                            <li class="menu-item">
+                                <a href="{% url 'register' %}" class="text-primary">Register</a>
+                            </li>
+                            <li class="menu-item">
+                                <a href="{% url 'login' %}" class="text-primary">Login</a>
+                            </li>
+                        </ul>
 
-					</div>
-
-					<div class="col-md-10">
-
-						<nav id="navbar">
-							<div class="main-menu stellarnav">
-								<ul class="menu-list">
-									<li class="menu-item active"><a href="{% url 'index' %}">Home</a></li>
-									<li class="menu-item"><a href="{% url 'featured' %}" class="nav-link">Featured</a></li>
-									<li class="menu-item"><a href="{% url 'popular' %}" class="nav-link">Popular</a></li>
-									<li class="menu-item"><a href="{% url 'offers' %}" class="nav-link">Offer</a></li>
-									<li class="menu-item"><a href="{% url 'articles' %}" class="nav-link">Articles</a></li>
-                                    <li>
-                                        <a href="#" class="btn btn-danger">Login</a>
-                                    </li>
-								</ul>
-
-								<div class="hamburger">
-									<span class="bar"></span>
-									<span class="bar"></span>
-									<span class="bar"></span>
-								</div>
-
-							</div>
-						</nav>
-
-					</div>
-
-				</div>
-			</div>
-		</header>
-
-	</div><!--header-wrap-->
+                        <div class="hamburger">
+                            <span class="bar"></span>
+                            <span class="bar"></span>
+                            <span class="bar"></span>
+                        </div>
+                    </div>
+                </nav>
+            </div>
+        </div>
+    </div>
+</header>
+</div>
 
 	<section id="billboard">
 
@@ -808,11 +796,9 @@
 			</div>
 		</div>
 	</section>
-
 	<section id="subscribe">
 		<div class="container">
 			<div class="row justify-content-center">
-
 				<div class="col-md-8">
 					<div class="row">
 

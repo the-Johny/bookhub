@@ -1,0 +1,67 @@
+{% extends 'main.html' %}
+{% load static %}
+
+{% block page %}
+    Profile Page
+{% endblock %}
+
+{% block body %}
+    <div class="logout-wrapper">
+        <p class="confirmation-text">Are you sure you want to Sign Out?</p>
+        <div class="actions">
+            <a href="{% url 'login' %}" class="button yes">Yes</a>
+            <a href="{% url 'admin-home' %}" class="button no">No</a>
+        </div>
+    </div>
+
+    <style>
+        .logout-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            height: 100vh;
+            text-align: center;
+            background-color: #f4f4f4;
+            padding: 20px;
+        }
+
+        .confirmation-text {
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .actions {
+            display: flex;
+            gap: 20px;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 16px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .yes {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .yes:hover {
+            background-color: #45a049;
+        }
+
+        .no {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .no:hover {
+            background-color: #da190b;
+        }
+    </style>
+{% endblock %}

@@ -1,0 +1,198 @@
+{% extends 'starter_page.html' %}
+{% load static %}
+
+<style>
+    .login-gradient {
+        background: linear-gradient(45deg, blueviolet, #67d1bc);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+    }
+
+    .login-card {
+        border-radius: 1rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .login-btn {
+        background-color: #0fa978;
+        color: #F5F5F5;
+        transition: all 0.3s ease;
+    }
+
+    .login-btn:hover {
+        background-color: #0c8f61;
+    }
+
+    .form-control {
+        padding: 0.75rem 1rem;
+    }
+</style>
+
+{% block body %}
+<section class="login-gradient">
+    <div class="container py-5">
+        <div class="row d-flex justify-content-center align-items-center">
+            <div class="col-12 col-md-8 col-lg-6">
+                <div class="card login-card">
+                {% if messages %}
+                       <div id="message-container">
+                           {% for message in messages %}
+                        {% if "register_success" in message.tags %}
+                        <div class="alert alert-success">{{ message }}</div>
+                    {% elif "register_error" in message.tags %}
+                <div class="alert alter-danger">{{ message }}</div>
+                   {% endif %}
+                     {% endfor %}
+                      </div>
+                     {% endif %}
+                    <div class="card-body p-5">
+                        <h3 class="text-center mb-4">Create An Account</h3>
+                        <form method="POST" id="register-form">
+                            {% csrf_token %}
+
+                            <!-- Fullname Field -->
+                            <div class="form-group mb-3">
+                                <label for="{{ form.fullname.id_for_label }}">Fullname</label>
+                                <input
+                                    type="text"
+                                    name="fullname"
+                                    id="{{ form.fullname.id_for_label }}"
+                                    class="form-control form-control-lg {% if form.fullname.errors %}is-invalid{% endif %}"
+                                    required
+                                />
+                                {% if form.fullname.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.fullname.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Email Field -->
+                            <div class="form-group mb-3">
+                                <label for="{{ form.email.id_for_label }}">Email address</label>
+                                <input
+                                    type="email"
+                                    name="email"
+                                    id="{{ form.email.id_for_label }}"
+                                    class="form-control form-control-lg {% if form.email.errors %}is-invalid{% endif %}"
+                                    required
+                                />
+                                {% if form.email.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.email.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Phone Number Field -->
+                            <div class="form-group mb-3">
+                                <label for="{{ form.phone_number.id_for_label }}">Phone Number</label>
+                                <input
+                                    type="tel"
+                                    name="phone_number"
+                                    id="{{ form.phone_number.id_for_label }}"
+                                    class="form-control form-control-lg {% if form.phone_number.errors %}is-invalid{% endif %}"
+                                    required
+                                />
+                                {% if form.phone_number.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.phone_number.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Password Field -->
+                            <div class="form-group mb-3">
+                                <label for="{{ form.password1.id_for_label }}">Password</label>
+                                <input
+                                    type="password"
+                                    name="password1"
+                                    id="{{ form.password1.id_for_label }}"
+                                    class="form-control form-control-lg {% if form.password1.errors %}is-invalid{% endif %}"
+                                    required
+                                />
+                                {% if form.password1.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.password1.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Confirm Password Field -->
+                            <div class="form-group mb-4">
+                                <label for="{{ form.password2.id_for_label }}">Confirm Password</label>
+                                <input
+                                    type="password"
+                                    name="password2"
+                                    id="{{ form.password2.id_for_label }}"
+                                    class="form-control form-control-lg {% if form.password2.errors %}is-invalid{% endif %}"
+                                    required
+                                />
+                                {% if form.password2.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.password2.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="d-grid">
+                                <button
+                                    type="submit"
+                                    class="btn btn-primary btn-block text-uppercase login-btn">
+                                    Register
+                                </button>
+                            </div>
+
+                            <div class="text-center mt-3">
+                                <p class="mb-0">
+                                    Already have an account?
+                                    <a href="{% url 'login' %}">
+                                        Sign In
+                                    </a>
+                                </p>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+    <script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const messageContainer = document.getElementById('message-container');
+    const form = document.getElementById('register-form');
+
+    if (messageContainer) {
+      setTimeout(() => {
+        // Apply fade-out animation
+        messageContainer.classList.add('fade-out');
+
+        // Redirect to login page after animation
+        setTimeout(() => {
+          const successMessage = document.querySelector('.alert-success');
+          if (successMessage) {
+            if (form) {
+              form.reset();
+            }
+            window.location.href = "{% url 'login' %}";
+          }
+        }, 1000); // Wait for the fade-out animation to complete
+      }, 2000); // 2 seconds before starting fade-out
+    }
+  });
+</script>
+
+{% endblock %}

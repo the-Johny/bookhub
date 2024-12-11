@@ -304,7 +304,7 @@ body {
   font-size: 16px;
   line-height: 2;
   color: var(--body-text-color);
-  background-color: var(--light-color);
+  background-color:#f8f9fa;;
 }
 
 body.no-scroll {

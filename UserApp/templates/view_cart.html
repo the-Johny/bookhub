@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block body %}
+    <div class="container" style="height: 100vh;">
+    <div class="" style="display: flex; align-items: center; justify-content: space-between;margin-bottom: 20px">
+        <h2>My Cart</h2>
+        <a href="{% url 'user-home' %}" style="text-decoration: none;background-color: #FFFFFF;padding: 10px;border-radius: 5px">Continue Shopping</a>
+    </div>
+<table class=" container table table-striped table-bordered">
+    <thead>
+        <tr>
+            <th>Book</th>
+            <th>Quantity</th>
+            <th>Price</th>
+            <th>Total</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in cart.items.all %}
+        <tr>
+            <td>{{ item.book.title }}</td>
+            <td>
+                <form method="POST" action="{% url 'update_cart_item' item.id %}">
+                    {% csrf_token %}
+                    <input type="number" name="quantity" value="{{ item.quantity }}" min="1">
+                    <button type="submit">Update</button>
+                </form>
+            </td>
+            <td>{{ item.book.price }}</td>
+            <td>{{ item.get_total_price }}</td>
+            <td>
+                <a href="{% url 'remove_cart_item' item.id %}">Remove</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<h3>Total: {{ cart.get_total_price }}</h3>
+<a href="{% url 'checkout' %}" class="btn btn-outline-dark">Proceed to Checkout</a>
+</div>
+{% endblock %}

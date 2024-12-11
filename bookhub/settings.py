@@ -25,7 +25,62 @@ SECRET_KEY = 'django-insecure-djcfqqdp4!07@c*##xdml2oz5y7^-8ajhu3hf(#6r%-mprwe@p
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+# MPesa Configuration
+MPESA_ENVIRONMENT = os.getenv('MPESA_ENVIRONMENT')
+MPESA_CONSUMER_KEY = os.getenv('MPESA_CONSUMER_KEY')
+MPESA_CONSUMER_SECRET = os.getenv('MPESA_CONSUMER_SECRET')
+MPESA_BUSINESS_SHORTCODE = os.getenv('MPESA_BUSINESS_SHORTCODE')
+MPESA_PASSKEY = os.getenv('MPESA_PASSKEY')
+MPESA_CALLBACK_BASE_URL = os.getenv('MPESA_CALLBACK_BASE_URL')
+
+
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '750f-2c0f-2d80-200-6100-8429-fd8-ea32-5bad.ngrok-free.app',
+]
+
+# Logging Configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose'
+        },
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': 'mpesa_debug.log',
+            'formatter': 'verbose'
+        },
+    },
+    'loggers': {
+        'mpesa': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}
+
+CSRF_TRUSTED_ORIGINS = ['https://750f-2c0f-2d80-200-6100-8429-fd8-ea32-5bad.ngrok-free.app']
+
+
+AUTH_USER_MODEL = 'bookapp.user'
+
+# Authentication Backend
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+]
 
 
 # Application definition
@@ -38,8 +93,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'bookapp',
-    'AdminApp',
-    'UserApp'
+    'adminapp',
+    'userapp'
 
 ]
 
@@ -84,7 +139,10 @@ DATABASES = {
         'USER': 'root',
         'PASSWORD': '',
         'HOST': '127.0.0.1',
-        'PORT': '3306'
+        'PORT': '3306',
+        'OPTIONS': {
+            'sql_mode': 'STRICT_TRANS_TABLES',  # Enable strict mode
+         },
     }
 }
 
