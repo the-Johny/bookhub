@@ -1,12 +1,10 @@
 import base64
-import datetime
-import logging
 import requests
-import time
+import logging
+from datetime import datetime
 from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
 
-logger = logging.getLogger('mpesa')
+logger = logging.getLogger(__name__)
 
 
 class MPesaError(Exception):
@@ -14,137 +12,84 @@ class MPesaError(Exception):
     pass
 
 
-def validate_phone_number(phone_number):
-    """
-    Validate and standardize phone number to 254XXXXXXXXX format
-    """
-    try:
-        # Remove any non-digit characters
-        phone = ''.join(filter(str.isdigit, str(phone_number)))
-
-        # Handle different phone number formats
-        if phone.startswith('0'):
-            phone = '254' + phone[1:]
-        elif phone.startswith('7') or phone.startswith('1'):
-            phone = '254' + phone
-
-        # Validate final format
-        if not (phone.startswith('254') and len(phone) == 12):
-            raise ValueError(f"Invalid phone number format: {phone_number}")
-
-        return phone
-    except Exception as e:
-        logger.error(f"Phone number validation error: {e}")
-        raise MPesaError(f"Invalid phone number: {phone_number}")
-
-
 def get_mpesa_access_token():
     """
-    Retrieve MPesa API access token with comprehensive error handling
+    Generate MPesa Access Token
     """
-    # Retrieve credentials securely
-    consumer_key = getattr(settings, 'MPESA_CONSUMER_KEY', None)
-    consumer_secret = getattr(settings, 'MPESA_CONSUMER_SECRET', None)
-
-    if not consumer_key or not consumer_secret:
-        logger.error("MPesa credentials are not configured in settings")
-        return None
-
     try:
-        # Determine correct URL based on environment
-        url = (
-            'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials'
-            if settings.MPESA_ENVIRONMENT == 'sandbox'
-            else 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials'
-        )
+        consumer_key = settings.MPESA_CONSUMER_KEY
+        consumer_secret = settings.MPESA_CONSUMER_SECRET
 
-        # Detailed logging
-        logger.info(f"Attempting to retrieve access token from {url}")
-        logger.debug(f"Using Consumer Key (first 5 chars): {consumer_key[:5]}")
+        # Combine consumer key and secret
+        credentials = f"{consumer_key}:{consumer_secret}"
 
-        # Make the request
+        # Base64 encode the credentials
+        encoded_credentials = base64.b64encode(credentials.encode('utf-8')).decode('utf-8')
+
+        # Prepare headers
+        headers = {
+            'Authorization': f'Basic {encoded_credentials}',
+            'Content-Type': 'application/json'
+        }
+
+        # Request access token
         response = requests.get(
-            url,
-            auth=(consumer_key, consumer_secret),
-            timeout=10,
-            headers={
-                'User-Agent': 'Django MPesa Integration',
-                'Accept': 'application/json'
-            }
+            'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials',
+            headers=headers,
+            timeout=10
         )
 
-        # Log full response for debugging
-        logger.debug(f"Response Status: {response.status_code}")
-        logger.debug(f"Response Headers: {response.headers}")
-        logger.debug(f"Response Content: {response.text}")
-
-        # Raise an exception for bad responses
-        response.raise_for_status()
-
-        # Parse JSON response
-        token_data = response.json()
-
-        # Safely extract access token
-        access_token = token_data.get('access_token')
-
-        if not access_token:
-            logger.error("No access token found in the response")
-            return None
-
-        logger.info("MPesa access token retrieved successfully")
-        return access_token
-
-    except requests.RequestException as e:
-        logger.error(f"MPesa Access Token Request Failed: {str(e)}")
-        return None
-    except ValueError as e:
-        logger.error(f"JSON Parsing Error: {str(e)}")
-        return None
-    except Exception as e:
-        logger.error(f"Unexpected error retrieving access token: {str(e)}")
-        return None
-
-
-def process_mpesa_payment(booking_id):
-    """
-    Comprehensive payment processing with multiple error checks
-    """
-    try:
-        # Retrieve access token with comprehensive error handling
-        access_token = get_mpesa_access_token()
-
-        if not access_token:
-            logger.error(f"Failed to retrieve access token for booking {booking_id}")
-            return False
-
-        # Additional payment processing logic here
-        # Ensure you have comprehensive error handling at each step
+        # Validate response
+        if response.status_code == 200:
+            return response.json()['access_token']
+        else:
+            logger.error(f"Access Token Error: {response.text}")
+            raise MPesaError("Failed to generate MPesa access token")
 
     except Exception as e:
-        logger.error(f"Payment processing error for booking {booking_id}: {str(e)}")
-        return False
+        logger.error(f"Access Token Generation Error: {str(e)}")
+        raise MPesaError(f"Access token error: {str(e)}")
+
+
+def validate_phone_number(phone_number):
+    """
+    Validate and format phone number for MPesa
+    """
+    # Remove any non-digit characters
+    phone = ''.join(filter(str.isdigit, str(phone_number)))
+
+    # Ensure it starts with 254
+    if phone.startswith('0'):
+        phone = '254' + phone[1:]
+    elif not phone.startswith('254'):
+        phone = '254' + phone
+
+    # Validate length
+    if len(phone) != 12:
+        raise MPesaError(f"Invalid phone number format: {phone}")
+
+    return phone
+
 
 def generate_mpesa_password():
     """
-    Generate MPesa API password
+    Generate MPesa Password for STK Push
     """
-    # Retrieve from settings to avoid hardcoding
-    passkey = getattr(settings, 'MPESA_PASSKEY', None)
-    business_shortcode = getattr(settings, 'MPESA_BUSINESS_SHORTCODE', None)
+    try:
+        business_shortcode = settings.MPESA_BUSINESS_SHORTCODE
+        passkey = settings.MPESA_PASSKEY
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
 
-    if not passkey or not business_shortcode:
-        raise ImproperlyConfigured(
-            "MPESA_PASSKEY and MPESA_BUSINESS_SHORTCODE must be set in settings"
-        )
+        # Create password by concatenating business shortcode, passkey, and timestamp
+        password_str = f"{business_shortcode}{passkey}{timestamp}"
 
-    timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+        # Base64 encode
+        password = base64.b64encode(password_str.encode('utf-8')).decode('utf-8')
 
-    # Convert business_shortcode to string before concatenation
-    password = base64.b64encode(
-        f"{business_shortcode}{passkey}{timestamp}".encode('utf-8')
-    ).decode('utf-8')
-
-    return {
-        'timestamp': timestamp,
-        'password': password
-    }
+        return {
+            'password': password,
+            'timestamp': timestamp
+        }
+    except Exception as e:
+        logger.error(f"Password Generation Error: {str(e)}")
+        raise MPesaError(f"Password generation error: {str(e)}")

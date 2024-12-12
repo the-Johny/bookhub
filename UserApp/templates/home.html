@@ -138,15 +138,12 @@
       {% for book in page_obj %}
     <div class="col-md-3">
       <div class="card book-card">
-        <img
-          src="{{book.cover_image}}"
-          class="card-img-top"
-          alt="Book Cover"
-        >
+        <img src="{{ book.cover_image }}" class="card-img-top" alt="Book Cover">
+
         <div class="card-body">
           <h5 class="card-title">{{ book.title }}</h5>
           <p class="card-text">Author: {{ book.author }}</p>
-          <p class="card-text">Genre: {{ book.genre.title }}</p>
+          <p class="card-text">Genre: {{ book.genre.name }}</p>
           <p class="card-text">Price: Ksh {{ book.price}}</p>
 
           <!-- Replace the existing "Add to Cart" button in the book card -->

@@ -26,18 +26,18 @@ SECRET_KEY = 'django-insecure-djcfqqdp4!07@c*##xdml2oz5y7^-8ajhu3hf(#6r%-mprwe@p
 DEBUG = True
 
 # MPesa Configuration
-MPESA_ENVIRONMENT = os.getenv('MPESA_ENVIRONMENT')
-MPESA_CONSUMER_KEY = os.getenv('MPESA_CONSUMER_KEY')
-MPESA_CONSUMER_SECRET = os.getenv('MPESA_CONSUMER_SECRET')
-MPESA_BUSINESS_SHORTCODE = os.getenv('MPESA_BUSINESS_SHORTCODE')
-MPESA_PASSKEY = os.getenv('MPESA_PASSKEY')
-MPESA_CALLBACK_BASE_URL = os.getenv('MPESA_CALLBACK_BASE_URL')
+MPESA_ENVIRONMENT = 'sandbox'
+MPESA_CONSUMER_KEY = 'consumer_key'
+MPESA_CONSUMER_SECRET = 'consumer_secret'
+MPESA_BUSINESS_SHORTCODE = 174379
+MPESA_PASSKEY = 'passkey'
+MPESA_CALLBACK_BASE_URL = 'base url'
 
 
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    '750f-2c0f-2d80-200-6100-8429-fd8-ea32-5bad.ngrok-free.app',
+    '9238-102-213-241-202.ngrok-free.app',
 ]
 
 # Logging Configuration
@@ -183,7 +183,7 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [
-    BASE_DIR, 'static'
+    BASE_DIR / 'static'
 ]
 
 # Default primary key field type
@@ -193,3 +193,4 @@ STATICFILES_DIRS = [
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+

@@ -8,7 +8,8 @@
     </div>
 
     <h1 class="mb-4">Payment Processing</h1>
-    <p class="lead">Your payment of {{ total_amount }} to order {{ order.id }} is being processed. You should receive an STK push on your phone shortly.</p>
+    <p class="lead">Your payment of {{ order.reference }} to order {{ order.id }} is being processed. You should receive an STK push on your phone shortly.</p>
+    {{ payment_response.status }}
 
 <div>
 

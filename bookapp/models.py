@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.utils import timezone
@@ -179,59 +180,27 @@ class OrderItem(models.Model):
     def get_total_price(self):
         return self.quantity * self.price
 
+
 class Payment(models.Model):
-    PAYMENT_STATUS_CHOICES = [
+    STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('success', 'Success'),
         ('failed', 'Failed')
     ]
 
-    PAYMENT_METHOD_CHOICES = [
-        ('mpesa', 'M-Pesa'),
-        ('credit_card', 'Credit Card'),
-        ('paypal', 'PayPal')
-    ]
-
-    Book = models.OneToOneField(
-        Book,
-        on_delete=models.CASCADE,
-        related_name='payment'
-    )
-    user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='payments'
-    )
-    amount = models.DecimalField(
-        max_digits=10,
-        decimal_places=2
-    )
-    transaction_code = models.CharField(
-        max_length=255,
-        null=True,
-        blank=True
-    )
-    mpesa_receipt_number = models.CharField(
-        max_length=255,
-        null=True,
-        blank=True
-    )
+    user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
+    order = models.OneToOneField('Order', on_delete=models.CASCADE,null=True,default=None)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_method = models.CharField(max_length=50)
     status = models.CharField(
         max_length=20,
-        choices=PAYMENT_STATUS_CHOICES,
+        choices=STATUS_CHOICES,
         default='pending'
     )
-    payment_method = models.CharField(
-        max_length=20,
-        choices=PAYMENT_METHOD_CHOICES,
-        default='mpesa'
-    )
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    mpesa_checkout_request_id = models.CharField(max_length=100, null=True, blank=True)
+    mpesa_receipt_number = models.CharField(max_length=50, null=True, blank=True)
+    phone_number = models.CharField(max_length=20)
 
     def __str__(self):
-        return f"Payment for {self.booking} - {self.status}"
-
-    class Meta:
-        verbose_name_plural = "Payments"
-        ordering = ['-created_at']
+        return f"Payment for Order {self.order_id} - {self.status}"

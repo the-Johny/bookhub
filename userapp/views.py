@@ -1,10 +1,13 @@
 import json
 import logging
+import requests
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Q, Sum, F
+from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.decorators.csrf import csrf_exempt
 
@@ -27,7 +30,7 @@ def user_home(request):
         books = Book.objects.filter(
             Q(title__icontains=search_query) |  # Search by title
             Q(author__icontains=search_query) |  # Search by author
-            Q(genre__icontains=search_query)  # Search by genre title
+            Q(genre__name__icontains=search_query)  # Search by genre title
         ).order_by('published_date')
     else:
         books = Book.objects.all().order_by('published_date')
@@ -166,20 +169,39 @@ def remove_cart_item(request, item_id):
     cart_item.delete()
     return redirect('view_cart')
 
+
 @login_required
 def checkout(request):
+    # 1. Retrieve user's cart
     cart = get_object_or_404(Cart, user=request.user)
+
+    # 2. Create a new order
     order = Order.objects.create(user=request.user)
+
+    # 3. Calculate total amount
     total_amount = cart.get_total_price()
+
+    # 4. Create order items from cart items
     for item in cart.items.all():
         OrderItem.objects.create(
             order=order,
             book=item.book,
             quantity=item.quantity,
-            price=item.book.price
+            price=cart.get_total_price(),
         )
-    cart.items.all().delete()  # Clear the cart after checkout
-    return render(request,'process_payment.html',{'order':order,'total_amount':total_amount})
+
+    # 5. Clear the cart after checkout
+    cart.items.all().delete()
+
+    initiate_mpesa_payment(request, order.id)
+
+
+    # 6. Render payment processing page
+    return render(request, 'process_payment.html', {
+        'order': order,
+        'total_amount': total_amount,
+
+    })
 
 
 def order_summary(request, order_id):
@@ -201,168 +223,117 @@ def order_summary(request, order_id):
 def user_profile(request):
     return render(request, 'user_profile.html')
 
-@login_required
-def initiate_payment(request, booking_id):
-    """
-    Initiate MPesa STK Push for payment
-    """
-    try:
-        # Retrieve booking and validate
-        booking = get_object_or_404(
-            Booking,
-            id=booking_id,
-            user=request.user,
-            status='CONFIRMED'
-        )
 
-        # Validate phone number
+@login_required
+def initiate_mpesa_payment(request, order_id):
+    try:
+        # 1. Retrieve the specific order
+        order = get_object_or_404(Order, id=order_id, user=request.user)
+
+        # 2. Calculate total amount
+        total_amount = order.items.aggregate(
+            total=Sum(F('price') * F('quantity'))
+        )['total'] or 0
+
+        # 3. Validate phone number
         phone_number = validate_phone_number(request.user.phone_number)
 
-        # Get access token
+        # 4. Get MPesa access token
         access_token = get_mpesa_access_token()
 
-        # Generate password
+        # 5. Generate MPesa credentials (password)
         mpesa_credentials = generate_mpesa_password()
 
-        # Prepare STK Push payload
+        # 6. Prepare STK Push payload
         payload = {
             "BusinessShortCode": settings.MPESA_BUSINESS_SHORTCODE,
             "Password": mpesa_credentials['password'],
             "Timestamp": mpesa_credentials['timestamp'],
             "TransactionType": "CustomerPayBillOnline",
-            "Amount": str(int(booking.total_price)),
+            "Amount": str(int(total_amount)),
             "PartyA": phone_number,
             "PartyB": settings.MPESA_BUSINESS_SHORTCODE,
             "PhoneNumber": phone_number,
-            "CallBackURL": f"{settings.MPESA_CALLBACK_BASE_URL}/mpesa/callback/{booking_id}/",
-            "AccountReference": f"Booking-{booking_id}",
-            "TransactionDesc": f"Payment for Booking {booking_id}"
+            "CallBackURL": f"{settings.MPESA_CALLBACK_BASE_URL}/mpesa/callback/{order_id}/",
+            "AccountReference": f"Order-{order_id}",
+            "TransactionDesc": f"Payment for Order {order_id}"
         }
 
-        # Initiate STK Push
-        headers = {
-            'Authorization': f'Bearer {access_token}',
-            'Content-Type': 'application/json'
-        }
-
+        # 7. Send STK Push request to MPesa
         response = requests.post(
             'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest',
             json=payload,
-            headers=headers,
-            timeout=10
+            headers={'Authorization': f'Bearer {access_token}'}
         )
 
-        # Validate response
+        # 8. If successful, create a payment record
         if response.status_code == 200:
             payment_details = response.json()
-
-            # Create payment record
             Payment.objects.create(
-
-                booking=booking,
                 user=request.user,
-                amount=booking.total_price,
-                payment_method='MPESA',
-                status='PENDING',
-                transaction_code=payment_details.get('CheckoutRequestID')
+                order=order,
+                amount=total_amount,
+                payment_method='mpesa',
+                status='pending',
+                mpesa_checkout_request_id=payment_details.get('CheckoutRequestID'),
+                phone_number=phone_number
             )
 
-            messages.success(request, "Payment request sent. Please complete payment on your phone.",extra_tags='payment')
-            return render(request, 'payment_processing.html', {'booking': booking,'payment_response': payment_details})
-        else:
-            logger.error(f"STK Push failed: {response.text}")
-            messages.error(request, "Payment initiation failed. Please try again.",extra_tags='payment')
-            return redirect('my-bookings')
+            # 9. Render payment processing page
+            return render(request, 'payment_processing.html', {
+                'order': order,
+                'payment_response': payment_details
+            })
 
-    except MPesaError as e:
-        logger.error(f"MPesa Payment Error: {str(e)}")
-        messages.error(request, f"Payment error: {str(e)}", extra_tags='payment')
-        return redirect('my-bookings')
     except Exception as e:
-        logger.error(f"Unexpected payment error: {str(e)}")
-        messages.error(request, "An unexpected error occurred. Please try again.",extra_tags='payment')
-        return redirect('my-bookings')
+        # Handle any errors during payment initiation
+        messages.error(request, "Payment initiation failed")
+        return redirect('order_summary', order_id=order_id)
 
 
 @csrf_exempt
-def mpesa_payment_callback(request, booking_id):
-    """
-    Handle MPesa payment callback
-    """
+def mpesa_payment_callback(request, order_id):
     if request.method == 'POST':
         try:
-            # Log raw callback data
-            raw_data = request.body.decode('utf-8')
-            logger.debug(f"Raw Callback Data: {raw_data}")
+            # 1. Receive callback data from MPesa
+            callback_data = json.loads(request.body.decode('utf-8'))
 
-            # Parse callback data
-            callback_data = json.loads(raw_data)
-            logger.info(f"Parsed Callback Data: {callback_data}")
-
-            # Extract relevant information
+            # 2. Extract payment result details
             stk_callback = callback_data.get('Body', {}).get('stkCallback', {})
             result_code = stk_callback.get('ResultCode')
-            result_desc = stk_callback.get('ResultDesc', 'No description')
             checkout_request_id = stk_callback.get('CheckoutRequestID')
 
-            # Retrieve booking and payment
-            booking = get_object_or_404(Booking, id=booking_id)
-            payment = get_object_or_404(Payment, booking=booking, transaction_code=checkout_request_id)
+            # 3. Retrieve corresponding order and payment
+            order = get_object_or_404(Order, id=order_id)
+            payment = get_object_or_404(
+                Payment,
+                order=order,
+                mpesa_checkout_request_id=checkout_request_id
+            )
 
-            # Process payment based on result code
+            # 4. Process payment based on result
             if result_code == 0:  # Successful payment
-                payment.status = 'SUCCESS'
-                payment.receipt_number = None  # Default value until extracted
-
-                # Update booking status
-                booking.status = 'PAID'
+                payment.status = 'success'
+                order.status = 'Paid'
 
                 # Extract additional transaction details
                 metadata = stk_callback.get('CallbackMetadata', {}).get('Item', [])
                 for item in metadata:
                     if item.get('Name') == 'MpesaReceiptNumber':
-                        payment.receipt_number = item.get('Value')
-                    elif item.get('Name') == 'Amount':
-                        payment.amount = item.get('Value')
-                    elif item.get('Name') == 'TransactionDate':
-                        payment.transaction_date = item.get('Value')  # Parse if required
+                        payment.mpesa_receipt_number = item.get('Value')
             else:
-                payment.status = 'FAILED'
-                payment.error_message = result_desc
+                payment.status = 'failed'
+                order.status = 'Payment Failed'
 
-                # Revert tour availability
-                if hasattr(booking, 'tour'):
-                    booking.tour.available_slots = max(0, booking.tour.available_slots + booking.slots_booked)
-                    booking.tour.save()
-
-            # Save changes
+            # 5. Save payment and order status
             payment.save()
-            booking.save()
+            order.save()
 
-            logger.info(f"Payment status updated: {payment.status}, Booking ID: {booking.id}")
-
-            return JsonResponse({
-                "status": "success",
-                "message": "Callback processed successfully"
-            })
-
-        except Booking.DoesNotExist:
-            logger.error(f"Booking with ID {booking_id} does not exist.")
-            return JsonResponse({"status": "error", "message": "Booking not found."}, status=404)
-
-        except Payment.DoesNotExist:
-            logger.error(f"Payment with transaction code {checkout_request_id} does not exist.")
-            return JsonResponse({"status": "error", "message": "Payment record not found."}, status=404)
-
-        except json.JSONDecodeError:
-            logger.error("Failed to decode JSON from callback data.")
-            return JsonResponse({"status": "error", "message": "Invalid JSON format."}, status=400)
+            return JsonResponse({"status": "success"})
 
         except Exception as e:
-            logger.error(f"Callback processing error: {str(e)}")
-            return JsonResponse({"status": "error", "message": str(e)}, status=500)
-
-    return JsonResponse({"status": "error", "message": "Invalid request method."}, status=405)
+            # Handle callback processing errors
+            return JsonResponse({"status": "error"}, status=500)
 
 
 def logout(request):
